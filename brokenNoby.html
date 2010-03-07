@@ -1,0 +1,46 @@
+<html>
+	<body>
+		<h1>Broken Noby Problem</h1>
+		<p>
+			The original problem stated by Ratan featured a shuffled stack of a plane ticket. But since I
+			find airports depressing I rebranded the problem with the NobyNobyBoy game found on the iPhone.
+		</p>
+		<p>
+			Noby is a little snake-line dude you can stretch, break apart and rejoin at will. In this problem, Noby get broken in a bunch a pieces and scrambled around. How can we fix Noby in the right order ?
+		</p>
+		<h2>Solution</h2>
+		<p>Noby is broken, noby is sad: <span id="brokenNoby"></span></p>
+		<p>Noby is fixed, noby is happy: <span id="fixedNoby"></span></p>
+		<h2>Code</h2>
+		<pre id="fixNobyCode">
+// The broken noby is expressed as an array of char pairs
+var brokenNoby = ["BC", "AB", "DE", "GH", "EF", "CD", "FG"];
+// Noby is voicing his sad state to the UI
+document.getElementById("brokenNoby").innerHTML = " :O( -" + brokenNoby.join("-");
+// We create the container for the new fixed noby, seeded with the first element
+// Seeding the noby removes the need for an additionnal condition in the main loop
+var fixedNoby = [brokenNoby.shift()];
+// Dr While is going to fix noby
+while (brokenNoby.length) {
+	// Break off the next part of the broken noby
+	var nobyPart = brokenNoby.shift();
+	// Noby part can connect to the end
+	if (nobyPart[0] === fixedNoby[fixedNoby.length-1][1]) fixedNoby.push(nobyPart);
+	// Noby part can connect to the beginning
+	else if (nobyPart[1] === fixedNoby[0][0]) fixedNoby.unshift(nobyPart)
+	// Unmatched noby part is put back at the end of the stack
+	else brokenNoby.push(nobyPart)
+};
+// Noby outputs his happyness to the UI
+document.getElementById("fixedNoby").innerHTML = " :O) -" + fixedNoby.join("-");
+		</pre>
+		<p>
+			<strong>Note on perforance:</strong> I havent tested it, but I have a feeling that the worst-case iteration count
+			for fixing noby is lower than twice the part count: "iter < part * 2"
+		</p>
+		<script type="text/javascript">
+			Function(document.getElementById("fixNobyCode").innerHTML)();
+		</script>
+		<br />
+	</body>
+</html>

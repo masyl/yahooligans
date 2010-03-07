@@ -1,0 +1,318 @@
+<html>
+	<head>
+	<style>
+#segments {
+	position: relative;
+	height: 100px;
+	width: 60%;
+	float: left;
+	background: #DDD;
+	border: 10px solid #DDD;
+}
+#segments div {
+	position: absolute;
+	background: #999;
+	border-top: 1px solid #AAA;
+	border-left: 1px solid #AAA;
+	border-right: 1px solid #666;
+	border-bottom: 1px solid #666;
+}
+#segments div.isMedian {
+	background: #00ff00;
+	border: 2px solid #000;
+	z-index: 1000;
+}
+#segmentList {
+	width: 30%;
+	float: right;
+}
+.sep {
+	clear: left;
+	height: 20px;
+	border: 1px solid #fff;
+}
+table td {
+	font-size: 0.7em;
+	font-family: tahoma;
+	padding: 0px 10px;
+}
+table .isMedian td {
+	font-weight: bold;
+	font-size: 1em;
+	background: #00ff00;
+}
+	</style>
+	</head>
+	<body>
+		<h1>Mediam Schmedian!</h1>
+		<div id="segmentList">
+		</div>
+		<div id="segments">
+		</div>
+		<div class="sep" />
+		<p>
+			Real median: <span id="realMedian"></span>
+			<br/>
+			Estimated median: <span id="estimatedMedian"></span>
+			<br/>
+			Error margin: <span id="errorMargin"></span>
+		</p>
+		<p>
+			NOTE: This simulation doesnt work in Google Chrome. Somehow, the chrome array sorting doesnt
+			behave the same as in firefox.
+		</p>
+		<p>
+			I dont know why someone would need to know the median of millions of numbers
+			on thousands of servers... but here's how I think it could be done.
+		</p>
+		<p>
+			The best estimated median segment is highlighted in green in both the chart and the segment
+			table on the right. The solution proposed here is to recreate the numbers distribution accross
+			all servers by a sort of "layering" of all samples on over the other. This layering is done
+			by creating segments out of all intersecting number boudaries and then filling each segment
+			with its "probable" portion of the numbers.
+		</p>
+		<p>
+			While the graph doesnt "look" like the real number distribution, it show hows it look when
+			receiving a very partial data set. In other words, in this scenario most numbers fall into
+			these big chunks but the samples received from each server isnt fined grained enough to tell us where.
+		</p>
+		<p>
+			In this simulated scenario, each server has
+			randomized numbers but they are all in the same range. This explains why the reconstructed number distributon looks like a grotesque double bell curve. I find this example metaphorically interesting because the median segment usually fall in between the two big mountainous segments. In other words, <em>"the answer lies in the valley"</em>. Wink Wink.
+		</p>
+		<p>
+			While the typical error ratio when running the simulator is around 5%, it could be
+			made a lot more accurate by fetching more than the median from each server.
+		</p>
+		<p>
+			For example, fetching 100 "index, value" pairs from each server would still be a very cheap databsase operation (using indexes it would be fractions of seconds) and this same algorythm would have enough segments to take the error of ratio down to something like .05% instead of 5%.
+		</p>
+		<p>
+			But I wont bother to code this part, because first its not part of the "premise" I had 
+			offered during the interview, and second my wife is starting to look at me funny accross the kitchen table.
+		</p>
+		<p>
+			Please, note that this theory was tought up on an airplane during a red-eye flight
+			on a 5x4' piece of paper, so even if the numbers end-up looking good,
+			it migh be worth checking twice before applying to a real situation.
+		</p>
+		<p>
+			On factor that makes me think there are still mistakes in the algorythm is that when
+			running multiple scenario, one can observe that the segment distribution visible on
+			the left side almost always containes the tallest and largest segment of the group.
+		</p>
+		<p>
+			I can think of no reasons why it should behave like this, since all simulation data is randomly generated... I probably have an index off somewhere!
+		</p>
+
+<script type="text/javascript">
+
+	// This factory creates virtual mailbox servers 
+	function MailboxServer(count) {
+		var itemCount = 0;
+		this.mailboxes = [];
+		for (var i=0; i<count; i++) {
+			itemCount += parseInt(Math.random()*1000);
+			this.mailboxes.push(itemCount);
+		}
+		this.median = function () {
+			return this.mailboxes[parseInt(this.mailboxes.length/2)];
+		};
+		this.low = function () {
+			return this.mailboxes[0];
+		};
+		this.high = function () {
+			return this.mailboxes[this.mailboxes.length-1];
+		};
+	};
+
+	// This factory creates virtual mailbox servers 
+	function MailboxServerCluster(serverCount, mailboxCount) {
+		this.servers = [];
+		for (var i=0; i < serverCount; i++) {
+			this.servers.push(new MailboxServer(mailboxCount));
+		}
+		// slowMedian is the unscalable reference implementation
+		// It just concatenates all the number arrays, sorts items
+		// and then get the median
+		this.slowMedian = function () {
+			var server,
+				bigAssArray = [];
+			for (var i=0; i < this.servers.length; i++) {
+				bigAssArray = bigAssArray.concat(this.servers[i].mailboxes);
+			}
+			bigAssArray.sort(function (a, b) {
+				return a < b;
+			});
+//			console.log("bigAssArray.length", bigAssArray.length);
+			return bigAssArray[parseInt(bigAssArray.length/2)];
+		}
+
+		// ( )
+		// My First Theory:
+		// While the exact median number is surely not possible to find because
+		// it is simply not present in the data sent back by each servers, it is
+		// possible to approximate its value by recreating the overall numbers distribution
+		// using the sample data.
+		// To do this, we create an array of "count segments". which
+		// will be used as number distribution containers.
+		// Then, each server sample is spread accross the series of segment it covers
+		// Finally, we try to find the median segment by finding a "median segment"
+		// depending on each segments weight. Then we average the final value
+		// using the high/low value of this "median segment".
+		// While this result would not be perfect, its percentage of accuracy
+		// can probably be statistically estimated and can be improved simply by
+		// by fetching more "fine grain" sample data from the servers. For example
+		// the servers could return 100 index/value markers instead of just the median.
+		// This would still be a cheap DB operation, while giving a very accurate estimate.
+
+		this.fastMedian = function () {
+			var server,
+				segment,
+				filteredSegments = [],
+				segments = [],
+				segmentShare,
+				segmentsLookup = {};
+
+			function distribute(low, high, count) {
+				var startIndex = segmentsLookup["low-" + low];
+				var endIndex = segmentsLookup["high-" + high];
+				var totalSegmentsSpan = high - low;
+				var sharePercent = 0; 
+				for (var i=startIndex; i<=endIndex; i++) {
+					segment = segments[i];
+					currentSegmentSpan = (segment[1]-segment[0]);
+					segmentShare = (currentSegmentSpan / totalSegmentsSpan) * count;
+					sharePercent = sharePercent + (currentSegmentSpan / totalSegmentsSpan);
+					segment[2] = segment[2] + segmentShare;
+				};
+			};
+
+			// Build the list of distribution segements
+			for (var i=0; i < this.servers.length; i++) {
+				server = this.servers[i];
+				segments.push([server.low(), 0, 0]);
+				segments.push([server.median(), 0, 0]);
+				segments.push([server.high(), 0, 0]);
+			};
+			// Sort segments to extract duplicates
+			segments.sort(function(a, b) { return a[0] > b[0]});
+//			console.log("segments: ", segments.length);
+			// Remove duplicates
+			for (var i=1; i < segments.length; i++) {
+				if (segments[i-1][0] !== segments[i][0]) filteredSegments.push(segments[i]);
+			};
+			segments = filteredSegments;
+			// Calculate remainnig segment boundaries 
+			for (var i=0; i < segments.length-1; i++) {
+				segments[i][1] = segments[i+1][0];
+			};
+			// Remove the trailing segment marker. This is the highest value and is not a range.
+			segments.pop();
+
+			// Build an index lookup table to quickly fetch where
+			// each segments will positionned
+//			console.log("segments: ", segments.length);
+			for (var i=0; i < segments.length; i++) {
+				segmentsLookup["low-"+segments[i][0]] = i;
+				segmentsLookup["high-"+segments[i][1]] = i;
+			};
+			// Remove duplicates
+			for (var i=0; i < this.servers.length; i++) {
+				server = this.servers[i];
+				// Distribute the lower bound
+				distribute(server.low(), server.median(), server.mailboxes.length/2);
+				// Distribute the higherbound
+				distribute(server.median(), server.high(), server.mailboxes.length/2);
+			};
+			var segmentTotalCount = 0;
+			for (var i=0; i < segments.length; i++) {
+				segmentTotalCount = segmentTotalCount + segments[i][2];
+			};
+			var getMedianSegmentCount = 0;
+//			console.log("segmentTotalCount: ", segmentTotalCount);
+			var medianSegmentIndex;
+			for (medianSegmentIndex=0; medianSegmentIndex<segments.length; medianSegmentIndex++) {
+				getMedianSegmentCount = getMedianSegmentCount + segments[medianSegmentIndex][2];
+				if (getMedianSegmentCount >= segmentTotalCount/2) break;
+			};
+			medianSegmentIndex--;
+			var medianSegment = segments[medianSegmentIndex];
+//			console.log("total count: ", segmentTotalCount);
+//			console.log("medianSegmentIndex: ", medianSegmentIndex);
+			//console.log("segments: ", segments);
+			var fastMedianVal = ((medianSegment[1]-medianSegment[0])/2) + medianSegment[0];
+			drawSegments(segments, medianSegmentIndex);
+			listSegments(segments, medianSegmentIndex);
+			return fastMedianVal;
+		}
+
+
+	};
+
+	function drawSegments(segments, medianSegmentIndex) {
+		var chart = "",
+			segment,
+			top = 0,
+			left = 0,
+			width = 0,
+			height = 0,
+			val = 0,
+			isMedian = "";
+			min = segments[0][0],
+			max = segments[segments.length-2][1],
+			span = max - min,
+			totalCount = 0,
+			topCount = 0;
+		for (var i=0; i < segments.length; i++) {
+			totalCount = totalCount + segments[i][2];
+			if (segments[i][2] > topCount) topCount = segments[i][2];
+		};
+		for (var i=0; i < segments.length; i++) {
+			segment = segments[i];
+			top = i;
+			val = segment[2];
+			width = Math.round(((segment[1]-segment[0])/span)*100);
+			height = Math.round((val / topCount) * 100);
+			//console.log("width: ", width, "   ", val, "   ",  min, "   ",  max);
+			isMedian = (i === medianSegmentIndex) ? "isMedian" : "";
+			chart = chart + "<div class='" + isMedian + "' style='bottom: 0px; height:" + height + "%;left:" + left + "%;width:" + width + "%;'></div>";
+			left = left + width;
+		};
+//		console.log(chart);
+		document.getElementById("segments").innerHTML = chart;
+	}
+	function listSegments(segments, medianSegmentIndex) {
+		var list = "",
+			total = 0,
+			isMedian = "",
+			segment;
+		list = list + "<table><thead><tr><td>from</td><td>to</td><td>count</td></tr></thead><tbody>";
+		for (var i=0; i < segments.length; i++) {
+			segment = segments[i];
+			total = total + segment[2];
+			isMedian = (i === medianSegmentIndex) ? "isMedian" : "";
+			list = list + "<tr class='" + isMedian + "'><td>" + segment[0] + "</td><td>" + segment[1]  + "</td><td>" + segment[2]  + "</td></tr>";
+		};
+		list = list + "</tbody><tfoot><tr><td>Total</td><td></td><td>" + total + "</td></tr></tfoot></table>";
+		document.getElementById("segmentList").innerHTML = list;
+	}
+
+
+//	var cluster = new MailboxServerCluster(5, 30);
+//	var cluster = new MailboxServerCluster(8, 40);
+//	var cluster = new MailboxServerCluster(8, 400);
+	var cluster = new MailboxServerCluster(20, 30);
+//	var cluster = new MailboxServerCluster(4, 100);
+	var slow = cluster.slowMedian();
+	var fast = cluster.fastMedian();
+	marginOfError = parseInt(Math.round(parseInt(fast-slow)/slow * 10000))/100;
+
+	document.getElementById("realMedian").innerHTML = slow;
+	document.getElementById("estimatedMedian").innerHTML = fast;
+	document.getElementById("errorMargin").innerHTML = marginOfError + " %";
+
+</script>
+	</body>
+</html>
