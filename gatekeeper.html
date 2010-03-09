@@ -1,0 +1,76 @@
+<html>
+	<head>
+		<style>
+			#circuitOutput {
+				background: #CCC;
+				padding: 20px;
+				color: #000;
+			}
+		</style>
+	</head>
+	
+	<body>
+		<h1>Gatekeeper</h1>
+		<p>
+			How would you build a logic gate circuit simulator in javascript?
+		</p>
+		<h2>The solution in action:</h2>
+		<div>
+			The circuit is : <span id="circuitCode">a=nand(d,d,false);b=nor(d,a,true);c=nand(a,b,false);d=and(a,c,true)</span>
+		</div>
+		<p id="circuitOutput"></p>
+		<p>
+			I believe this approach is flexible, extensible, easy to work with. Some more work
+			with the UI could generate circuit graphs using Canvas and edit and execute circuits
+			live from user input.
+		</p>
+		<h2>Explanations</h2>
+		<p>
+			As I outlined during the interview, I started with a object model for gates for which
+			the main behavior is common to all gates and the logic of each individual gate is injected
+			using an anonymous function.
+		</p>
+		<p>
+			A circuit is then created by instantiating a series of gates and setting up their
+			input and initial states. Near the end, I took the liberty to create a shorthand
+			language I called <strong>gatescript</strong> in order to quickly test different
+			circuit scenarios quickly. The gatescript expression shown above is the one actually
+			being executed.
+		</p>
+		<p>
+			Once the gatescript expression is interpreted and the circuit instantiated, a
+			"setInterval" clock is used to trigger each cycle of the circuit using the
+			circuit "runner" which has been coded into the circuit object.
+		</p>
+		<script type="text/javascript" src="gatekeeper.js"></script>
+		<script type="text/javascript">
+	
+			// Here is a sample of how to build a circuit using javascript
+			// code instead of the gatescript notation
+			/*
+			var circuit = new Gatekeeper({
+				"a": Gatekeeper.nand("d", "d", false),
+				"b": Gatekeeper.nor("d", "a", true),
+				"c": Gatekeeper.nand("a", "b", false),
+				"d": Gatekeeper.and("a", "c", true)
+			}, {
+				drawToElementId: "circuitOutput"
+			});
+			*/
+
+
+			// Output the state of the circuit to the UI
+			drawCircuit = function (circuit) {
+				var out = [];
+				for (var iGate in circuit.gates) {
+					out.push(iGate + "=" + circuit.gates[iGate].state);
+				}
+				document.getElementById("circuitOutput").innerHTML = out.join(" ");
+			};
+	
+			var circuit = new Gatekeeper(document.getElementById("circuitCode").textContent);
+			setInterval("circuit.tick().tock();drawCircuit(circuit);", 500);
+	
+		</script>
+	</body>
+</html>
